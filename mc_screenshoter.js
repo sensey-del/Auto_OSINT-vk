@@ -10,9 +10,9 @@ const moment = require("moment");
   fs.mkdirSync(folderName);
 
 const links = [
-"links",
-"links",
-"links"
+"https://vk.com/id211823541",
+"https://vk.com/id228379580",
+"https://vk.com/id227534468"
 ];
 
 
@@ -24,13 +24,13 @@ const links = [
   // Для каждой ссылки
   for (let link of links) {
     await page.goto(link);
-    await page.waitForTimeout(10000); // Ждем 10 секунд
+    await page.waitForTimeout(8000); // Ждем 8 секунд
 
     await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
     });
 
-    await page.waitForTimeout(5000); // Ждем 5 секунд
+    await page.waitForTimeout(8000); // Ждем 8 секунд
 
     // Создаем скриншот и сохраняем его в папку с именем ссылки
     const screenshotName = link.replace("https://", "").replace("/", "_") + ".png";
