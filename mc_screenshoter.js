@@ -10,9 +10,9 @@ const moment = require("moment");
   fs.mkdirSync(folderName);
 
 const links = [
-"https://vk.com/id211823541",
-"https://vk.com/id228379580",
-"https://vk.com/id227534468"
+"links",
+"links",
+"links"
 ];
 
 

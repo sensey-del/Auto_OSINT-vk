@@ -6,6 +6,7 @@ const puppeteer = require('puppeteer');
     await page.goto('https://vk.com/login');
     await page.waitForSelector('#index_email');
     await page.type('#index_email', process.env.VK_LOGIN || 'default_login');
+    await page.type('#index_email', '<login>'); // Замените 'ВАШ_ЛОГИН' на реальный логин
     await page.keyboard.press('Enter')
     await page.waitForTimeout(15000)
     await page.waitForNavigation();
@@ -13,5 +14,5 @@ const puppeteer = require('puppeteer');
     console.error('Ошибка:', error);
     }
   };
-
 module.exports = loginToVK;
+
