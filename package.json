@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "easyvk": "^2.5.11",
+    "fs": "^0.0.1-security",
+    "moment": "^2.30.1",
+    "puppeteer": "^21.6.1"
+  }
+}
