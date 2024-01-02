@@ -5,14 +5,36 @@ const moment = require("moment");
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-(async () => {
   // Подключение к БД
-  const connection = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME 
+async function createConnection() {
+  try {
+    const connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
   });
+  console.log('Есть контакт!');
+  return connection;
+} catch (err) {
+  console.error('Факинг еррор при подключении к БД', err.message)
+  throw err;
+  }
+}
+
+async function connectWithRetry() {
+  while (true) {
+    try {
+      return await createConnection();
+    } catch (err) {
+      console.log('Повторная попытка подключения через 2 секунды...');
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+}
+
+(async () => { 
+  const connection = await connectWithRetry();
 
   const [rows, fields] = await connection.execute('SELECT link FROM osint_links');
   
@@ -31,12 +53,12 @@ require('dotenv').config();
     await page.goto(link);
     await page.waitFor(8000); // Ждем 8 секунд
 
-    // Получаем URL пользователя
-    const urlParts = link.split('/');
-    const userId = urlParts[urlParts.length - 1];
+  // Получаем URL пользователя
+  const urlParts = link.split('/');
+  const userId = urlParts[urlParts.length - 1];
 
-      // Получаем имя и фамилию из профиля
-    const profileName = await page.evaluate(() => {
+  // Получаем имя и фамилию из профиля
+  const profileName = await page.evaluate(() => {
 
     const nameElement = document.querySelector('h2#owner_page_name');
     return nameElement ? nameElement.textContent.trim() : null;
