@@ -14,7 +14,7 @@ require('dotenv').config();
     database: process.env.DB_NAME 
   });
 
-  const [rows, fields] = await connection.execute('SELECT link FROM osint_list');
+  const [rows, fields] = await connection.execute('SELECT link FROM osint_links');
   
   const links = rows.map(row => row.link);
 
@@ -31,6 +31,21 @@ require('dotenv').config();
     await page.goto(link);
     await page.waitFor(8000); // Ждем 8 секунд
 
+    // Получаем URL пользователя
+    const urlParts = link.split('/');
+    const userId = urlParts[urlParts.length - 1];
+
+      // Получаем имя и фамилию из профиля
+    const profileName = await page.evaluate(() => {
+
+    const nameElement = document.querySelector('h2#owner_page_name');
+    return nameElement ? nameElement.textContent.trim() : null;
+    });
+
+    const nameParts = profileName.split(' ');
+    const firstName = nameParts[0]; // Первый элемент - имя
+    const lastName = nameParts.slice(1).join(' '); // Все остальные - фамилия
+
     await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
     });
@@ -38,13 +53,13 @@ require('dotenv').config();
     await page.waitFor(8000); // Ждем 8 секунд
 
     // Создаем скриншот и сохраняем его в папку с именем ссылки
-    const screenshotName = link.replace("https://", "").replace("/", "_") + ".png";
+    const screenshotName = `${userId}_${profileName}.png`; // Имя файла скриншота
     await page.screenshot({ path: `${folderName}/${screenshotName}`, fullPage: true });
 
     // Добавление данных в базу данных
     const [results, fields] = await connection.execute(
-      'INSERT INTO osint_list (ссылка, путь_к_скриншоту) VALUES (?, ?)',
-      [link, `${folderName}/${screenshotName}`]
+      'INSERT INTO osint_list (link, path_to_screenshot, name, lastName) VALUES (?, ?, ?, ?)',
+      [link, `${folderName}/${screenshotName}` , firstName, lastName]
     );
     console.log('Добавлено в базу данных:', results);
   }
