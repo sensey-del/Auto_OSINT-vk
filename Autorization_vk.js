@@ -7,10 +7,10 @@ require('dotenv').config();
     await page.waitForSelector('#index_email');
     await page.type('#index_email', process.env.VK_LOGIN || 'default_login');
     await page.keyboard.press('Enter')
-    await page.waitFor(15000)
     await page.waitForNavigation();
     } catch (error) {
-    console.error('Ошибка:', error);
+    console.error('Ошибка в LoginToVk', error);
     }
   };
+
 module.exports = loginToVK;

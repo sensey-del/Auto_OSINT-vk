@@ -37,7 +37,6 @@ async function connectWithRetry() {
   const connection = await connectWithRetry();
 
   const [rows, fields] = await connection.execute('SELECT link FROM osint_links');
-  
   const links = rows.map(row => row.link);
 
   const folderName = moment().format("YYYY-MM-DD_HH-mm-ss");
@@ -50,31 +49,21 @@ async function connectWithRetry() {
 
   // Для каждой ссылки
   for (let link of links) {
-    await page.goto(link);
-    await page.waitFor(8000); // Ждем 8 секунд
+    try {
+      await page.goto(link);
+      await page.waitForSelector('h2#owner_page_name');
 
-  // Получаем URL пользователя
-  const urlParts = link.split('/');
-  const userId = urlParts[urlParts.length - 1];
+      const urlParts = link.split('/').pop();
+      const profileName = await page.$eval('h2#owner_page_name', element => element.textContent.trim());
+      
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
 
-  // Получаем имя и фамилию из профиля
-  const profileName = await page.evaluate(() => {
-
-    const nameElement = document.querySelector('h2#owner_page_name');
-    return nameElement ? nameElement.textContent.trim() : null;
-    });
-
-    const nameParts = profileName.split(' ');
-    const firstName = nameParts[0]; // Первый элемент - имя
-    const lastName = nameParts.slice(1).join(' '); // Все остальные - фамилия
-
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight);
-    });
-
-    await page.waitFor(8000); // Ждем 8 секунд
+      await page.waitForTimeout(8000);
 
     // Создаем скриншот и сохраняем его в папку с именем ссылки
+
     const screenshotName = `${userId}_${profileName}.png`; // Имя файла скриншота
     await page.screenshot({ path: `${folderName}/${screenshotName}`, fullPage: true });
 
@@ -84,8 +73,12 @@ async function connectWithRetry() {
       [link, `${folderName}/${screenshotName}` , firstName, lastName]
     );
     console.log('Добавлено в базу данных:', results);
+  } catch (error) {
+    console.error('ошибка при обработке страницы', error.message);
   }
+}
 
   // Закрываем браузер после сбора скриншотов
   await browser.close();
+  console.log('Обработка завершена. Браузер офф');
 })();
