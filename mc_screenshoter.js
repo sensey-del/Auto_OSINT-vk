@@ -3,6 +3,7 @@ const loginToVK = require('./Autorization_vk');
 const fs = require("fs");
 const moment = require("moment");
 const mysql = require('mysql2/promise');
+const { error } = require("console");
 require('dotenv').config();
 
   // Подключение к БД
@@ -22,6 +23,8 @@ async function createConnection() {
   }
 }
 
+
+  // Повоторная попытка подключения к БД
 async function connectWithRetry() {
   while (true) {
     try {
@@ -33,15 +36,20 @@ async function connectWithRetry() {
   }
 }
 
+
+
+//Функция проверки сущетсвующих ссылок в БД
+async function checkIfLinkExists(connection, link) {
+  const [rows, _] = await connection.execute('SELECT * FROM osint_links WHERE link = ?', [link]);
+  return rows.length > 0 ? rows[0] : null;
+}
+
 (async () => { 
   const connection = await connectWithRetry();
-
   const [rows, fields] = await connection.execute('SELECT link FROM osint_links');
   const links = rows.map(row => row.link);
-
   const folderName = moment().format("YYYY-MM-DD_HH-mm-ss");
   fs.mkdirSync(folderName);
-
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
 
@@ -52,33 +60,46 @@ async function connectWithRetry() {
     try {
       await page.goto(link);
       await page.waitForSelector('h2#owner_page_name');
-
       const urlParts = link.split('/').pop();
+      const userId = urlParts[urlParts.length - 1];
       const profileName = await page.$eval('h2#owner_page_name', element => element.textContent.trim());
-      
+      const nameParts = profileName.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight);
       });
 
-      await page.waitForTimeout(8000);
+    await page.waitForTimeout(8000);
 
-    // Создаем скриншот и сохраняем его в папку с именем ссылки
-
-    const screenshotName = `${userId}_${profileName}.png`; // Имя файла скриншота
+    const screenshotName = `${userId}_${profileName.replace(/ /g, '_')}.png`; // Имя файла скриншота
     await page.screenshot({ path: `${folderName}/${screenshotName}`, fullPage: true });
 
-    // Добавление данных в базу данных
-    const [results, fields] = await connection.execute(
-      'INSERT INTO osint_list (link, path_to_screenshot, name, lastName) VALUES (?, ?, ?, ?)',
-      [link, `${folderName}/${screenshotName}` , firstName, lastName]
-    );
-    console.log('Добавлено в базу данных:', results);
-  } catch (error) {
-    console.error('ошибка при обработке страницы', error.message);
+  const linkExists = await checkIfLinkExists(connection, link);
+  if (!linkExists || (linkExists.length > 0 && linkExists[0].path_to_screenshot && !linkExists[0].name && !linkExists[0].lastName)) {
+    const insertQuery = `
+    INSERT INTO osint_links (link, path_to_screenshot, name, lastName)
+    VALUES (?, ?, ?, ?)
+  `;
+  await connection.execute(insertQuery, [link, folderName, firstName, lastName]);
+    console.log('Добавлена новая запись ссылка в БД', link);
+  } else {
+    //Уже есть ссылка
+    const updateQuery = `
+    UPDATE osint_links
+    SET path_to_screenshot = COALESCE(?, path_to_screenshot),
+        name = COALESCE(?, name),
+        lastName = COALESCE(?, lastName)
+    WHERE link = ?
+    `;
+    await connection.execute(updateQuery, [folderName, firstName, lastName, link]);
+    console.log('Обновлены значения для сслыки', link);
+    } 
+  }catch (error) {
+    console.error('Ошибка при обработки странициы', error.message);
   }
-}
-
-  // Закрываем браузер после сбора скриншотов
+  }
   await browser.close();
   console.log('Обработка завершена. Браузер офф');
 })();
