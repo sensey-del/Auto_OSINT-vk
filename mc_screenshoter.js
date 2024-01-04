@@ -71,8 +71,9 @@ async function checkIfLinkExists(connection, link) {
         window.scrollTo(0, document.body.scrollHeight);
       });
 
-    await page.waitForTimeout(8000);
 
+
+    await page.waitFor(500);
     const screenshotName = `${userId}_${profileName.replace(/ /g, '_')}.png`; // Имя файла скриншота
     await page.screenshot({ path: `${folderName}/${screenshotName}`, fullPage: true });
 
